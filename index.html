@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <title>Interactive Feed Forward Network</title>
+  <link rel="stylesheet" href="https://unpkg.com/spotlight.js/dist/spotlight.bundle.css" />
+  <script defer src="https://unpkg.com/spotlight.js/dist/spotlight.bundle.js"></script>
   <style>
     :root {
       color-scheme: light;
@@ -20,27 +22,37 @@
       align-items: stretch;
     }
 
-    header {
-      padding: 1.5rem 2rem 0.5rem;
-    }
-
-    header h1 {
-      margin: 0 0 0.4rem;
-      font-size: 1.9rem;
-    }
-
-    header p {
-      margin: 0;
-      max-width: 60ch;
-      color: #52606d;
-    }
-
     .network-wrapper {
       flex: 1;
       display: flex;
       justify-content: center;
-      align-items: center;
+      align-items: flex-start;
+      gap: 2rem;
       padding: 1.5rem 2rem 2.5rem;
+      position: relative;
+      flex-wrap: wrap;
+    }
+
+    .network-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      max-width: 320px;
+      width: min(320px, 100%);
+    }
+
+    .network-header {
+      padding: 0;
+    }
+
+    .network-header h1 {
+      margin: 0 0 0.6rem;
+      font-size: 1.9rem;
+    }
+
+    .network-header p {
+      margin: 0;
+      color: #52606d;
     }
 
     #network {
@@ -55,6 +67,107 @@
       flex-direction: column;
       justify-content: center;
       overflow: hidden;
+    }
+
+    .pet-preview {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 1rem;
+      padding: 0.65rem;
+      box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18);
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      backdrop-filter: blur(4px);
+    }
+
+    .pet-preview a {
+      display: block;
+      border-radius: 0.85rem;
+      overflow: hidden;
+    }
+
+    .pet-preview img {
+      width: 100%;
+      height: 208px;
+      object-fit: contain;
+      border-radius: 0.85rem;
+      display: block;
+      box-shadow: inset 0 1px 6px rgba(15, 23, 42, 0.15);
+      background: rgba(15, 23, 42, 0.08);
+    }
+
+    .pet-preview-label {
+      text-transform: uppercase;
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      text-align: center;
+      color: #1f2937;
+      font-weight: 700;
+    }
+
+    .input-arrow {
+      position: absolute;
+      top: 50%;
+      left: 50px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      font-size: 3.5rem;
+      color: rgba(37, 99, 235, 0.8);
+      text-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+    }
+
+    .network-status {
+      position: absolute;
+      bottom: 0.6rem;
+      left: 50%;
+      transform: translate(-50%, 10px);
+      font-size: 1.56rem;
+      color: #1f2937;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 0.7rem 1.8rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+      pointer-events: none;
+      opacity: 0;
+      display: none;
+    }
+
+    .network-status--visible {
+      display: inline-flex;
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    @keyframes statusFlash {
+      0% {
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12), 0 0 0 rgba(59, 130, 246, 0);
+      }
+      50% {
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12), 0 0 18px rgba(59, 130, 246, 0.35);
+      }
+      100% {
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12), 0 0 0 rgba(59, 130, 246, 0);
+      }
+    }
+
+    .network-status--flash {
+      animation: statusFlash 0.8s ease;
+    }
+
+    @keyframes statusDissolve {
+      0% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+      }
+    }
+
+    .network-status--dissolve {
+      animation: statusDissolve 1s forwards;
     }
 
     .layers {
@@ -84,6 +197,75 @@
       letter-spacing: 0.04em;
       text-transform: uppercase;
       font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .layer-action {
+      pointer-events: auto;
+      border: none;
+      border-radius: 999px;
+      padding: 0.15rem 0.8rem;
+      background: #2563eb;
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .layer-action:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 22px rgba(37, 99, 235, 0.45);
+    }
+
+    .layer-action:active {
+      transform: translateY(0);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+    }
+
+    .neuron-controls {
+      display: none;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 0.2rem;
+      pointer-events: auto;
+    }
+
+    .neuron-controls--visible,
+    .neuron-controls--persistent {
+      display: flex;
+    }
+
+    .neuron-controls button {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid #d2d6dc;
+      background: #e4ecf7;
+      color: #1d3557;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+
+    .neuron-controls button:hover {
+      background: #cbd5f5;
+      transform: translateY(-1px);
+    }
+
+    .neuron-controls button:active {
+      transform: translateY(0);
+    }
+
+    .neuron-controls button:focus-visible {
+      outline: 2px solid #2563eb;
+      outline-offset: 2px;
     }
 
     .neuron-block {
@@ -117,13 +299,130 @@
       pointer-events: none;
       position: relative;
       z-index: 3;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
       will-change: transform;
+    }
+
+    .neuron--type-input {
+      background: linear-gradient(145deg, #ffe8cc, #ffd6a1);
+      border-color: #f5c48d;
+    }
+
+    .neuron--type-hidden {
+      background: linear-gradient(145deg, #e0edff, #c7dcff);
+      border-color: #a1c0fb;
+    }
+
+    .neuron--type-output {
+      background: linear-gradient(145deg, #ffd7d7, #ffb4b4);
+      border-color: #f09a9a;
+    }
+
+    .neuron-prediction-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #1f2937;
+      padding: 0.2rem 0.45rem;
+      border-radius: 0.55rem;
+      margin-top: 0.35rem;
+      background: rgba(15, 23, 42, 0.06);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .neuron-prediction-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      margin-left: 0.6rem;
+      position: absolute;
+      top: 45%;
+      right: 20px;
+      transform: translate(0, -50%);
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+      pointer-events: none;
+    }
+
+    .neuron-prediction-icon--success {
+      background: rgba(34, 197, 94, 0.25);
+      color: #14532d;
+    }
+
+    .neuron-prediction-icon--error {
+      background: rgba(239, 68, 68, 0.25);
+      color: #7f1d1d;
     }
 
     .neuron--clickable {
       pointer-events: auto;
       cursor: pointer;
+    }
+
+    @keyframes neuronPulseOrange {
+      0% {
+        background: linear-gradient(145deg, #ffe8cc, #ffd6a1);
+        border-color: #f5c48d;
+      }
+      40% {
+        background: linear-gradient(145deg, #ffcf99, #ffb866);
+        border-color: #fb923c;
+        box-shadow: inset 0 6px 16px rgba(248, 191, 97, 0.7), 0 10px 26px rgba(253, 186, 116, 0.35);
+      }
+      100% {
+        background: linear-gradient(145deg, #ffe8cc, #ffd6a1);
+        border-color: #f5c48d;
+      }
+    }
+
+    @keyframes neuronPulseBlue {
+      0% {
+        background: linear-gradient(145deg, #e0edff, #c7dcff);
+        border-color: #a1c0fb;
+      }
+      40% {
+        background: linear-gradient(145deg, #c0d8ff, #97beff);
+        border-color: #2563eb;
+        box-shadow: inset 0 6px 16px rgba(59, 130, 246, 0.45), 0 10px 26px rgba(96, 165, 250, 0.35);
+      }
+      100% {
+        background: linear-gradient(145deg, #e0edff, #c7dcff);
+        border-color: #a1c0fb;
+      }
+    }
+
+    @keyframes neuronPulseRed {
+      0% {
+        background: linear-gradient(145deg, #ffd7d7, #ffb4b4);
+        border-color: #f09a9a;
+      }
+      40% {
+        background: linear-gradient(145deg, #ffb7b7, #ff8d8d);
+        border-color: #ef4444;
+        box-shadow: inset 0 6px 16px rgba(248, 113, 113, 0.55), 0 10px 26px rgba(248, 113, 113, 0.4);
+      }
+      100% {
+        background: linear-gradient(145deg, #ffd7d7, #ffb4b4);
+        border-color: #f09a9a;
+      }
+    }
+
+    .neuron--pulse-orange {
+      animation: neuronPulseOrange 0.2s ease forwards;
+    }
+
+    .neuron--pulse-blue {
+      animation: neuronPulseBlue 0.2s ease forwards;
+    }
+
+    .neuron--pulse-red {
+      animation: neuronPulseRed 0.2s ease forwards;
     }
 
     .neuron--clickable:hover {
@@ -150,6 +449,34 @@
       transition: stroke-width 0.18s ease;
     }
 
+    svg#connections line.connection-overlay-line {
+      stroke: rgba(59, 130, 246, 0.95);
+      stroke-width: 2.2;
+      stroke-dasharray: 6 4;
+      pointer-events: none;
+    }
+
+    .connection-handle {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(37, 99, 235, 0.6);
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #1e3a8a;
+      font-size: 0.6rem;
+      font-weight: 700;
+      cursor: pointer;
+      z-index: 3;
+      pointer-events: auto;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+
+
     #weight-panel {
       position: absolute;
       top: 0;
@@ -159,11 +486,12 @@
       gap: 0.6rem;
       padding: 0.75rem 0.9rem;
       border-radius: 0.75rem;
-      border: 1px solid rgba(148, 163, 184, 0.45);
-      background: rgba(255, 255, 255, 0.98);
-      box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.06);
+      box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16), inset 0 1px 1px rgba(255, 255, 255, 0.28);
       z-index: 4;
       min-width: 160px;
+      backdrop-filter: blur(2px);
     }
 
     #neuron-panel {
@@ -175,12 +503,13 @@
       gap: 0.7rem;
       padding: 0.9rem 1.05rem;
       border-radius: 0.85rem;
-      border: 1px solid rgba(148, 163, 184, 0.45);
-      background: rgba(250, 252, 255, 0.98);
-      box-shadow: 0 22px 52px rgba(15, 23, 42, 0.22);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.1);
+      box-shadow: 0 25px 60px rgba(15, 23, 42, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.35);
       z-index: 4;
       min-width: 240px;
       max-width: 320px;
+      backdrop-filter: blur(8px);
     }
 
     .neuron-expression {
@@ -366,28 +695,36 @@
   </style>
 </head>
 <body>
-  <header>
-    <h1>Interactive Feed Forward Network</h1>
-    <p>Adjust the connection weights and watch the forward pass update instantly. Inputs remain fixed while every hidden and output neuron recomputes its value after each tweak.</p>
-  </header>
-
   <div class="network-wrapper">
+    <div class="network-sidebar">
+      <header class="network-header">
+        <h1>Interaktív Előrecsatolt Háló</h1>
+        <p>Hangold a súlyokat – főleg a kék (rejtett rétegben lévő) neuronok segítségével –, hogy a háló a bemeneti számok alapján eldöntse: a kép macska (kimenet 1-hez közeli) vagy kutya (kimenet 0-hoz közeli). Keverd újra a bemeneteket, figyeld a változó összefüggéseket, és lásd, hogyan reagál a teljes hálózat.</p>
+      </header>
+      <div id="pet-preview" class="pet-preview">
+        <a id="pet-preview-link" class="spotlight" href="#" data-spotlight-group="pet" data-spotlight-height="840" data-spotlight-width="840">
+          <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Állat előnézet" />
+        </a>
+        <span class="pet-preview-label">Betöltés...</span>
+      </div>
+    </div>
     <div id="network">
       <svg id="connections"></svg>
+      <div class="input-arrow" aria-hidden="true">→</div>
       <div id="weight-panel">
         <div class="panel-header">
-          <span class="panel-title">Connection</span>
+          <span class="panel-title">Kapcsolat</span>
           <button type="button" class="panel-close">X</button>
         </div>
         <div class="panel-body">
           <div class="panel-value">
-            <span class="panel-value-label">Weight</span>
+            <span class="panel-value-label">Súly</span>
             <span class="weight-value">0.00</span>
           </div>
         </div>
         <div class="panel-controls">
-          <button type="button" data-delta="0.1">+ 0.1</button>
           <button type="button" data-delta="-0.1">- 0.1</button>
+          <button type="button" data-delta="0.1">+ 0.1</button>
         </div>
       </div>
       <div id="neuron-panel">
@@ -397,17 +734,18 @@
         </div>
         <div class="panel-body neuron-panel-body">
           <div class="panel-value">
-            <span class="panel-value-label">Output</span>
+            <span class="panel-value-label">Kimenet</span>
             <span class="neuron-output-value">0.00</span>
           </div>
         </div>
         <div class="neuron-expression"></div>
       </div>
       <div class="layers"></div>
+      <div id="network-status" class="network-status"></div>
     </div>
   </div>
 
-  <footer>Weights increment and decrement by 0.1. Line colours reveal the weight sign and strength.</footer>
+  <footer>A súlyokat 0,1-es lépésekben módosíthatod. A kék vonalak áttetszősége mutatja a kapcsolat erősségét.</footer>
 
   <script>
     (function () {
@@ -415,6 +753,10 @@
       const hiddenLayers = [3, 2];
       const layerSizes = [inputValues.length, ...hiddenLayers, 1];
 
+      const outputAdjustmentStep = 0.1;
+      const hiddenNeuronWeightStep = 0.1;
+      const neuronPulseDuration = 200;
+      const neuronValueEpsilon = 0.0001;
       const networkEl = document.getElementById('network');
       const layersEl = networkEl.querySelector('.layers');
       const svgEl = document.getElementById('connections');
@@ -428,12 +770,53 @@
       const neuronOutputValueEl = neuronPanel.querySelector('.neuron-output-value');
       const neuronExpressionEl = neuronPanel.querySelector('.neuron-expression');
       const neuronCloseBtn = neuronPanel.querySelector('.panel-close');
+      const petPreviewEl = document.getElementById('pet-preview');
+      const petPreviewImg = petPreviewEl ? petPreviewEl.querySelector('img') : null;
+      const petPreviewLink = document.getElementById('pet-preview-link');
+      const petPreviewLabelEl = petPreviewEl ? petPreviewEl.querySelector('.pet-preview-label') : null;
+      const statusEl = document.getElementById('network-status');
 
       const neuronsByLayer = [];
       const connections = [];
       const expressionHighlightColor = '#fb923c';
       let activeConnection = null;
       let activeNeuron = null;
+      let activeControlNeuron = null;
+      const connectionOverlayLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      svgEl.appendChild(connectionOverlayLayer);
+      let activeOverlayLine = null;
+      let currentPetType = null;
+      let statusTimeoutId = null;
+      let statusHideTimeoutId = null;
+      let currentPetImageUrl = '';
+
+      function setStatus(message) {
+        if (!statusEl) {
+          return;
+        }
+        statusEl.textContent = message;
+        statusEl.classList.remove('network-status--visible', 'network-status--flash', 'network-status--dissolve');
+        statusEl.style.display = 'inline-flex';
+        void statusEl.offsetWidth;
+        statusEl.classList.add('network-status--visible', 'network-status--flash');
+        if (statusTimeoutId) {
+          window.clearTimeout(statusTimeoutId);
+        }
+        if (statusHideTimeoutId) {
+          window.clearTimeout(statusHideTimeoutId);
+        }
+        statusTimeoutId = window.setTimeout(() => {
+          statusEl.classList.remove('network-status--flash');
+          statusEl.classList.add('network-status--dissolve');
+          statusTimeoutId = null;
+          statusHideTimeoutId = window.setTimeout(() => {
+            statusEl.classList.remove('network-status--visible', 'network-status--dissolve');
+            statusEl.style.display = 'none';
+            statusEl.textContent = '';
+            statusHideTimeoutId = null;
+          }, 1000);
+        }, 150);
+      }
 
       function formatNumber(value) {
         const rounded = Math.round(value * 100) / 100;
@@ -442,20 +825,24 @@
 
       function makeNeuronLabel(layerIndex, neuronIndex) {
         if (layerIndex === 0) {
-          return `Input ${neuronIndex + 1}`;
+          return `Bemenet ${neuronIndex + 1}`;
         }
         if (layerIndex === layerSizes.length - 1) {
-          return 'Output';
+          return 'Kimenet';
         }
-        return `Hidden ${layerIndex}-${neuronIndex + 1}`;
+        return `Rejtett ${layerIndex}-${neuronIndex + 1}`;
+      }
+
+      function weightAlpha(weight) {
+        const clamp = Math.max(-2, Math.min(2, weight));
+        const magnitude = Math.min(1, Math.abs(clamp) / 2);
+        const minAlpha = 0.2;
+        return minAlpha + magnitude * (1 - minAlpha);
       }
 
       function weightToColor(weight) {
-        const clamp = Math.max(-2, Math.min(2, weight));
-        const magnitude = Math.min(1, Math.abs(clamp) / 2);
-        const lightness = 65 - magnitude * 25;
-        const hue = clamp >= 0 ? 210 : 0;
-        return `hsl(${hue}, 72%, ${lightness}%)`;
+        const alpha = weightAlpha(weight);
+        return `rgba(37, 99, 235, ${alpha.toFixed(2)})`;
       }
 
       function weightToStroke(weight) {
@@ -481,11 +868,22 @@
           const labelEl = document.createElement('div');
           labelEl.className = 'layer-label';
           if (layerIndex === 0) {
-            labelEl.textContent = 'Input Layer';
+            labelEl.textContent = 'Bemeneti réteg';
           } else if (layerIndex === layerSizes.length - 1) {
-            labelEl.textContent = 'Output Layer';
+            labelEl.textContent = 'Kimeneti réteg';
           } else {
-            labelEl.textContent = `Hidden Layer ${layerIndex}`;
+            labelEl.textContent = `Rejtett réteg ${layerIndex}`;
+          }
+          if (layerIndex === 0) {
+            const shuffleButton = document.createElement('button');
+            shuffleButton.type = 'button';
+            shuffleButton.className = 'layer-action layer-action--shuffle';
+            shuffleButton.textContent = 'Bemenetek keverése';
+            shuffleButton.addEventListener('click', (event) => {
+              event.stopPropagation();
+              randomizeInputs();
+            });
+            labelEl.appendChild(shuffleButton);
           }
           layerEl.appendChild(labelEl);
 
@@ -499,6 +897,13 @@
 
             const neuronEl = document.createElement('div');
             neuronEl.className = 'neuron';
+            if (layerIndex === 0) {
+              neuronEl.classList.add('neuron--type-input');
+            } else if (layerIndex === layerSizes.length - 1) {
+              neuronEl.classList.add('neuron--type-output');
+            } else {
+              neuronEl.classList.add('neuron--type-hidden');
+            }
 
             const valueEl = document.createElement('div');
             valueEl.className = 'neuron-value';
@@ -507,7 +912,8 @@
 
             blockEl.appendChild(titleEl);
             blockEl.appendChild(neuronEl);
-            layerEl.appendChild(blockEl);
+
+            let predictionEl = null;
 
             const neuronData = {
               layerIndex,
@@ -515,18 +921,90 @@
               element: neuronEl,
               valueEl,
               titleEl,
+              blockEl,
+              controlsEl: null,
+              predictionEl: null,
               incoming: [],
               outgoing: [],
               value: 0,
               midX: 0,
-              midY: 0
+              midY: 0,
+              isInitialized: false,
+              pulseTimeout: null
             };
+
+            if (layerIndex === layerSizes.length - 1 && i === 0) {
+              predictionEl = document.createElement('div');
+              predictionEl.className = 'neuron-prediction-label';
+              predictionEl.innerHTML = '<span class="neuron-prediction-text">Előrejelzés: —</span><span class="neuron-prediction-icon neuron-prediction-icon--success">✓</span>';
+              blockEl.appendChild(predictionEl);
+              neuronData.predictionEl = predictionEl;
+
+              const controlsEl = document.createElement('div');
+              controlsEl.className = 'neuron-controls neuron-controls--output neuron-controls--persistent';
+              const decreaseBtn = document.createElement('button');
+              decreaseBtn.type = 'button';
+              decreaseBtn.textContent = '-';
+              decreaseBtn.setAttribute('aria-label', 'Kimeneti érték csökkentése');
+              const increaseBtn = document.createElement('button');
+              increaseBtn.type = 'button';
+              increaseBtn.textContent = '+';
+              increaseBtn.setAttribute('aria-label', 'Kimeneti érték növelése');
+              controlsEl.appendChild(decreaseBtn);
+              controlsEl.appendChild(increaseBtn);
+              blockEl.appendChild(controlsEl);
+
+              decreaseBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                handleOutputAdjustment(-outputAdjustmentStep);
+              });
+              increaseBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                handleOutputAdjustment(outputAdjustmentStep);
+              });
+            }
+
+            if (layerIndex > 0 && layerIndex < layerSizes.length - 1) {
+              const controlsEl = document.createElement('div');
+              controlsEl.className = 'neuron-controls';
+              const decreaseBtn = document.createElement('button');
+              decreaseBtn.type = 'button';
+              decreaseBtn.textContent = '-';
+              decreaseBtn.setAttribute('aria-label', 'Bejövő súlyok csökkentése');
+              const increaseBtn = document.createElement('button');
+              increaseBtn.type = 'button';
+              increaseBtn.textContent = '+';
+              increaseBtn.setAttribute('aria-label', 'Bejövő súlyok növelése');
+              controlsEl.appendChild(decreaseBtn);
+              controlsEl.appendChild(increaseBtn);
+              blockEl.appendChild(controlsEl);
+              neuronData.controlsEl = controlsEl;
+
+              controlsEl.addEventListener('click', (event) => {
+                event.stopPropagation();
+              });
+              decreaseBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                adjustNeuronIncomingWeights(neuronData, -hiddenNeuronWeightStep);
+              });
+              increaseBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                adjustNeuronIncomingWeights(neuronData, hiddenNeuronWeightStep);
+              });
+            }
+
+            layerEl.appendChild(blockEl);
 
             if (layerIndex > 0) {
               neuronEl.classList.add('neuron--clickable');
               neuronEl.addEventListener('click', (event) => {
                 event.stopPropagation();
                 showNeuronPanel(neuronData);
+                if (neuronData.controlsEl) {
+                  toggleHiddenNeuronControls(neuronData);
+                } else {
+                  hideHiddenNeuronControls();
+                }
               });
             }
 
@@ -553,8 +1031,7 @@
               line.setAttribute('stroke-width', baseStroke);
               svgEl.appendChild(line);
 
-              const label = `${fromNeuron.titleEl.textContent} -> ${toNeuron.titleEl.textContent}`;
-
+            const label = `${fromNeuron.titleEl.textContent} → ${toNeuron.titleEl.textContent}`;
               const connection = {
                 from: fromNeuron,
                 to: toNeuron,
@@ -568,7 +1045,8 @@
                 baseStroke,
                 isPointerHover: false,
                 isExpressionHover: false,
-                id: null
+                id: null,
+                handleEl: null
               };
 
               fromNeuron.outgoing.push(connection);
@@ -577,9 +1055,29 @@
               connection.id = connections.length - 1;
               line.setAttribute('data-connection-id', String(connection.id));
               refreshConnectionStroke(connection);
+              const handleEl = document.createElement('button');
+              handleEl.type = 'button';
+              handleEl.className = 'connection-handle';
+              handleEl.setAttribute('aria-label', `Súly módosítása: ${fromNeuron.titleEl.textContent} → ${toNeuron.titleEl.textContent}`);
+              handleEl.addEventListener('click', (event) => {
+                event.stopPropagation();
+                showWeightPanel(connection);
+                setStatus(`Kapcsolat kijelölve: ${label}`);
+              });
+              handleEl.addEventListener('mouseenter', () => {
+                connection.isPointerHover = true;
+                refreshConnectionStroke(connection);
+              });
+              handleEl.addEventListener('mouseleave', () => {
+                connection.isPointerHover = false;
+                refreshConnectionStroke(connection);
+              });
+              connection.handleEl = handleEl;
+              networkEl.appendChild(handleEl);
               line.addEventListener('pointerdown', (event) => {
                 event.stopPropagation();
                 showWeightPanel(connection);
+                setStatus(`Kapcsolat kijelölve: ${label}`);
               });
               line.addEventListener('pointerenter', () => {
                 connection.isPointerHover = true;
@@ -600,7 +1098,177 @@
         refreshConnectionStroke(connection);
         if (connection === activeConnection) {
           weightValueEl.textContent = formatNumber(connection.weight);
+          updateActiveOverlayAppearance();
+          setStatus(`Kapcsolat súlya módosítva: ${connection.label}`);
         }
+      }
+
+      function setActiveConnection(connection) {
+        if (activeConnection && activeConnection.line) {
+          activeConnection.line.classList.remove('connection-line--active');
+        }
+        if (activeOverlayLine && connectionOverlayLayer.contains(activeOverlayLine)) {
+          connectionOverlayLayer.removeChild(activeOverlayLine);
+          activeOverlayLine = null;
+        }
+        activeConnection = connection;
+        if (activeConnection && activeConnection.line) {
+          activeConnection.line.classList.add('connection-line--active');
+          activeOverlayLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          activeOverlayLine.classList.add('connection-overlay-line');
+          connectionOverlayLayer.appendChild(activeOverlayLine);
+          updateActiveOverlayAppearance();
+          syncActiveOverlayFromLine();
+        }
+      }
+
+      function updateActiveOverlayAppearance() {
+        if (!activeOverlayLine || !activeConnection) {
+          return;
+        }
+        const alpha = weightAlpha(activeConnection.weight);
+        activeOverlayLine.setAttribute('stroke', `rgba(59, 130, 246, ${alpha.toFixed(2)})`);
+      }
+
+      function loadRandomPetImage() {
+        if (!petPreviewImg || !petPreviewLabelEl) {
+          return;
+        }
+        const isCat = Math.random() >= 0.5;
+        currentPetType = isCat ? 'cat' : 'dog';
+        const cacheBust = Date.now();
+        const imageUrl = isCat ? `https://cataas.com/cat?width=280&height=280&ts=${cacheBust}` : `https://place.dog/280/280?random=${cacheBust}`;
+        petPreviewImg.src = imageUrl;
+        currentPetImageUrl = imageUrl;
+        if (petPreviewLink) {
+          petPreviewLink.href = imageUrl;
+          petPreviewLink.setAttribute('data-spotlight-height', '840');
+          petPreviewLink.setAttribute('data-spotlight-width', '840');
+        }
+        petPreviewImg.alt = isCat ? 'Véletlen macska' : 'Véletlen kutya';
+        petPreviewLabelEl.textContent = isCat ? 'Macska' : 'Kutya';
+        petPreviewEl?.setAttribute('data-pet-type', currentPetType);
+      }
+
+      function syncActiveOverlayFromLine(x1, y1, x2, y2) {
+        if (!activeConnection || !activeOverlayLine) {
+          return;
+        }
+        if (typeof x1 !== 'number' || Number.isNaN(x1)) {
+          const line = activeConnection.line;
+          if (!line) {
+            return;
+          }
+          x1 = Number(line.getAttribute('x1')) || 0;
+          y1 = Number(line.getAttribute('y1')) || 0;
+          x2 = Number(line.getAttribute('x2')) || 0;
+          y2 = Number(line.getAttribute('y2')) || 0;
+        }
+        activeOverlayLine.setAttribute('x1', x1);
+        activeOverlayLine.setAttribute('y1', y1);
+        activeOverlayLine.setAttribute('x2', x2);
+        activeOverlayLine.setAttribute('y2', y2);
+      }
+
+      function toggleHiddenNeuronControls(neuron) {
+        if (!neuron || !neuron.controlsEl) {
+          hideHiddenNeuronControls();
+          return;
+        }
+        if (activeControlNeuron === neuron) {
+          hideHiddenNeuronControls();
+          return;
+        }
+        hideHiddenNeuronControls();
+        neuron.controlsEl.classList.add('neuron-controls--visible');
+        activeControlNeuron = neuron;
+      }
+
+      function hideHiddenNeuronControls() {
+        if (activeControlNeuron && activeControlNeuron.controlsEl) {
+          activeControlNeuron.controlsEl.classList.remove('neuron-controls--visible');
+        }
+        activeControlNeuron = null;
+      }
+
+      function adjustNeuronIncomingWeights(neuron, delta) {
+        if (!neuron || !Number.isFinite(delta) || !neuron.incoming.length) {
+          return;
+        }
+        neuron.incoming.forEach((connection) => {
+          const newWeight = connection.weight + delta;
+          connection.weight = Math.round(newWeight * 100) / 100;
+          updateConnectionVisual(connection);
+        });
+        recomputeNetwork();
+        setStatus(`Rejtett neuronnál súly módosult: ${neuron.titleEl.textContent}`);
+      }
+
+      function updateNeuronValue(neuron, nextValue) {
+        if (!neuron || !Number.isFinite(nextValue)) {
+          return;
+        }
+        const previousValue = neuron.value;
+        neuron.value = nextValue;
+        neuron.valueEl.textContent = formatNumber(nextValue);
+        if (!neuron.isInitialized) {
+          neuron.isInitialized = true;
+          return;
+        }
+        if (Math.abs(previousValue - nextValue) > neuronValueEpsilon) {
+          pulseNeuron(neuron);
+        }
+      }
+
+      function updateOutputPredictionLabel() {
+        const lastLayerIndex = neuronsByLayer.length - 1;
+        if (lastLayerIndex < 0) {
+          return;
+        }
+        const outputLayer = neuronsByLayer[lastLayerIndex];
+        if (!outputLayer.length) {
+          return;
+        }
+        const outputNeuron = outputLayer[0];
+        if (!outputNeuron.predictionEl) {
+          return;
+        }
+        const predictedCat = outputNeuron.value >= 0.5;
+        const description = predictedCat ? '1-hez közeli' : '0-hoz közeli';
+        const actualCat = currentPetType === 'cat';
+        const isCorrect = currentPetType ? predictedCat === actualCat : predictedCat;
+        const icon = outputNeuron.predictionEl.querySelector('.neuron-prediction-icon');
+        const textEl = outputNeuron.predictionEl.querySelector('.neuron-prediction-text');
+        if (textEl) {
+          textEl.textContent = 'Előrejelzés: ' + (predictedCat ? 'Macska' : 'Kutya') + ` (${description})`;
+        } else {
+          outputNeuron.predictionEl.textContent = 'Előrejelzés: ' + (predictedCat ? 'Macska' : 'Kutya') + ` (${description})`;
+        }
+        if (icon) {
+          icon.textContent = isCorrect ? '✓' : '✗';
+          icon.classList.toggle('neuron-prediction-icon--success', isCorrect);
+          icon.classList.toggle('neuron-prediction-icon--error', !isCorrect);
+        }
+        outputNeuron.predictionEl.classList.toggle('neuron-prediction-label--cat', predictedCat);
+        outputNeuron.predictionEl.classList.toggle('neuron-prediction-label--dog', !predictedCat);
+      }
+
+      function pulseNeuron(neuron) {
+        if (!neuron || !neuron.element) {
+          return;
+        }
+        const el = neuron.element;
+        el.classList.remove('neuron--pulse-orange', 'neuron--pulse-blue', 'neuron--pulse-red');
+        if (neuron.pulseTimeout) {
+          window.clearTimeout(neuron.pulseTimeout);
+        }
+        void el.offsetWidth;
+        const pulseClass = neuron.layerIndex === 0 ? 'neuron--pulse-orange' : neuron.layerIndex === layerSizes.length - 1 ? 'neuron--pulse-red' : 'neuron--pulse-blue';
+        el.classList.add(pulseClass);
+        neuron.pulseTimeout = window.setTimeout(() => {
+          el.classList.remove('neuron--pulse-orange', 'neuron--pulse-blue', 'neuron--pulse-red');
+          neuron.pulseTimeout = null;
+        }, neuronPulseDuration);
       }
 
       function applyWeightChange(connection, delta) {
@@ -612,12 +1280,12 @@
         connection.weight = newScaled / 10;
         updateConnectionVisual(connection);
         recomputeNetwork();
+        setStatus(`Kapcsolat súlya módosítva: ${connection.label}`);
       }
 
       function recomputeNetwork() {
         neuronsByLayer[0].forEach((neuron, index) => {
-          neuron.value = inputValues[index];
-          neuron.valueEl.textContent = formatNumber(neuron.value);
+          updateNeuronValue(neuron, inputValues[index]);
         });
 
         for (let layerIndex = 1; layerIndex < neuronsByLayer.length; layerIndex += 1) {
@@ -631,15 +1299,134 @@
               connection.lastContribution = contribution;
               sum += contribution;
             });
-            neuron.value = sum;
-            neuron.valueEl.textContent = formatNumber(neuron.value);
+            updateNeuronValue(neuron, sum);
           });
         }
+
+        updateOutputPredictionLabel();
 
         if (activeNeuron) {
           updateNeuronPanelContent(activeNeuron);
           placeNeuronPanel(activeNeuron);
         }
+      }
+
+      function randomizeInputs() {
+        hideHiddenNeuronControls();
+        for (let i = 0; i < inputValues.length; i += 1) {
+          inputValues[i] = Math.round(Math.random() * 100) / 100;
+        }
+        loadRandomPetImage();
+        recomputeNetwork();
+        setStatus('Új bemenetek és állatkép betöltve.');
+      }
+
+      function handleOutputAdjustment(delta) {
+        if (!Number.isFinite(delta) || !neuronsByLayer.length) {
+          return;
+        }
+        const outputLayer = neuronsByLayer[neuronsByLayer.length - 1];
+        if (!outputLayer.length) {
+          return;
+        }
+        const targetValue = outputLayer[0].value + delta;
+        const success = adjustNetworkToTargetOutput(targetValue);
+        if (!success) {
+          window.alert('Nem sikerült a hálót a kívánt kimenetre hangolni.');
+          setStatus('Nem sikerült a kívánt kimenetet elérni.');
+        } else {
+          setStatus('Kimenet finomhangolva a kért értékhez.');
+        }
+      }
+
+      function computeNeuronGradients() {
+        const gradients = neuronsByLayer.map((layer) => layer.map(() => 0));
+        const lastLayerIndex = neuronsByLayer.length - 1;
+        if (lastLayerIndex < 0) {
+          return gradients;
+        }
+        const outputLayer = neuronsByLayer[lastLayerIndex];
+        outputLayer.forEach((_, neuronIndex) => {
+          gradients[lastLayerIndex][neuronIndex] = 1;
+        });
+
+        for (let layerIndex = lastLayerIndex - 1; layerIndex >= 0; layerIndex -= 1) {
+          const layer = neuronsByLayer[layerIndex];
+          layer.forEach((neuron, neuronIndex) => {
+            let gradientSum = 0;
+            neuron.outgoing.forEach((connection) => {
+              const targetLayerIndex = connection.to.layerIndex;
+              gradientSum += connection.weight * gradients[targetLayerIndex][connection.to.index];
+            });
+            gradients[layerIndex][neuronIndex] = gradientSum;
+          });
+        }
+
+        return gradients;
+      }
+
+      function adjustNetworkToTargetOutput(targetValue) {
+        if (!Number.isFinite(targetValue)) {
+          return false;
+        }
+        const tolerance = 0.01;
+        const maxIterations = 200;
+        const learningRate = 0.03;
+        let success = false;
+
+        recomputeNetwork();
+
+        for (let iteration = 0; iteration < maxIterations; iteration += 1) {
+          const outputLayer = neuronsByLayer[neuronsByLayer.length - 1];
+          if (!outputLayer.length) {
+            break;
+          }
+          const outputNeuron = outputLayer[0];
+          const error = outputNeuron.value - targetValue;
+          if (Math.abs(error) <= tolerance) {
+            success = true;
+            break;
+          }
+
+          const neuronGradients = computeNeuronGradients();
+          let anyUpdate = false;
+
+          connections.forEach((connection) => {
+            const gradient = connection.from.value * neuronGradients[connection.to.layerIndex][connection.to.index];
+            if (!Number.isFinite(gradient) || gradient === 0) {
+              return;
+            }
+            const weightDelta = learningRate * error * gradient;
+            if (weightDelta === 0) {
+              return;
+            }
+      connection.weight -= weightDelta;
+            anyUpdate = true;
+          });
+
+          if (!anyUpdate) {
+            break;
+          }
+
+          recomputeNetwork();
+        }
+
+        if (!success) {
+          let finalOutput = 0;
+          const lastLayer = neuronsByLayer[neuronsByLayer.length - 1];
+          if (lastLayer && lastLayer.length) {
+            finalOutput = lastLayer[0].value;
+          }
+          if (Math.abs(finalOutput - targetValue) <= tolerance) {
+            success = true;
+          }
+        }
+
+        connections.forEach((connection) => {
+          updateConnectionVisual(connection);
+        });
+
+        return success;
       }
 
       function positionConnections() {
@@ -660,6 +1447,28 @@
 
           connection.midX = (x1 + x2) / 2;
           connection.midY = (y1 + y2) / 2;
+          if (connection.handleEl) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const dist = Math.hypot(dx, dy) || 1;
+            const tangentX = dx / dist;
+            const tangentY = dy / dist;
+            const normalX = -dy / dist;
+            const normalY = dx / dist;
+            const fromLayer = neuronsByLayer[connection.from.layerIndex] || [];
+            const toLayer = neuronsByLayer[connection.to.layerIndex] || [];
+            const fromCenteredIndex = connection.from.index - (fromLayer.length - 1) / 2;
+            const toCenteredIndex = connection.to.index - (toLayer.length - 1) / 2;
+            const tangentialOffset = (fromCenteredIndex + toCenteredIndex) * 12;
+            const normalOffset = (fromCenteredIndex - toCenteredIndex) * 10;
+            const handleX = connection.midX + tangentX * tangentialOffset + normalX * normalOffset;
+            const handleY = connection.midY + tangentY * tangentialOffset + normalY * normalOffset;
+            connection.handleEl.style.left = `${handleX - 8}px`;
+            connection.handleEl.style.top = `${handleY - 8}px`;
+          }
+          if (activeConnection === connection) {
+            syncActiveOverlayFromLine(x1, y1, x2, y2);
+          }
         });
 
         if (activeConnection) {
@@ -729,7 +1538,7 @@
           return {
             lines: [],
             summaryParts: [],
-            note: 'This neuron holds a fixed input value of ' + formatNumber(neuron.value) + '.'
+            note: 'Ez a neuron rögzített bemeneti értéket tart: ' + formatNumber(neuron.value) + '.'
           };
         }
 
@@ -800,12 +1609,14 @@
         activeNeuron = neuron;
         updateNeuronPanelContent(neuron);
         neuronPanel.style.display = 'flex';
+        setStatus(`Neuron megnyitva: ${neuron.titleEl.textContent}`);
         requestAnimationFrame(() => {
           placeNeuronPanel(neuron);
         });
       }
 
       function hideNeuronPanel() {
+        hideHiddenNeuronControls();
         if (activeNeuron) {
           activeNeuron.incoming.forEach((connection) => {
             if (connection.isExpressionHover) {
@@ -823,7 +1634,8 @@
 
       function showWeightPanel(connection) {
         hideNeuronPanel();
-        activeConnection = connection;
+        hideHiddenNeuronControls();
+        setActiveConnection(connection);
         weightPanelTitle.textContent = connection.label;
         weightValueEl.textContent = formatNumber(connection.weight);
         weightPanel.style.display = 'flex';
@@ -833,7 +1645,7 @@
       }
 
       function hideWeightPanel() {
-        activeConnection = null;
+        setActiveConnection(null);
         weightPanel.style.display = 'none';
       }
 
@@ -893,12 +1705,20 @@
           if (activeNeuron) {
             hideNeuronPanel();
           }
+          hideHiddenNeuronControls();
         });
+
+        document.addEventListener('click', () => {
+          hideHiddenNeuronControls();
+        });
+
       }
 
       function init() {
         buildLayers();
         buildConnections();
+        svgEl.appendChild(connectionOverlayLayer);
+        loadRandomPetImage();
         recomputeNetwork();
         attachEventHandlers();
         positionConnections();
