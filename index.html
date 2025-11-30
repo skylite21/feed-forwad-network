@@ -595,6 +595,7 @@
       font-size: 0.82rem;
       font-weight: 600;
       color: #486581;
+      cursor: move;
     }
 
     .panel-close {
@@ -1722,6 +1723,32 @@
 
       }
 
+      function makeDraggable(panelEl, handleEl) {
+        let isDragging = false;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        handleEl.addEventListener('mousedown', (e) => {
+          isDragging = true;
+          offsetX = e.clientX - panelEl.offsetLeft;
+          offsetY = e.clientY - panelEl.offsetTop;
+          panelEl.style.userSelect = 'none';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+          if (!isDragging) return;
+          const x = e.clientX - offsetX;
+          const y = e.clientY - offsetY;
+          panelEl.style.left = `${x}px`;
+          panelEl.style.top = `${y}px`;
+        });
+
+        document.addEventListener('mouseup', () => {
+          isDragging = false;
+          panelEl.style.userSelect = '';
+        });
+      }
+
       function init() {
         buildLayers();
         buildConnections();
@@ -1730,6 +1757,7 @@
         recomputeNetwork();
         attachEventHandlers();
         positionConnections();
+        makeDraggable(neuronPanel, neuronPanel.querySelector('.panel-header'));
         window.addEventListener('resize', () => {
           window.requestAnimationFrame(positionConnections);
         });
