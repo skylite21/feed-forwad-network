@@ -1504,25 +1504,29 @@
         neuron.element.classList.add('neuron--auto-correct-highlight');
       }
 
-      function canNeuronHelpCorrect(neuron, targetValue, tolerance) {
-        // Check if adjusting this neuron's incoming weights can help reach the target
+      function willNeuronMakeAdjustments(neuron, targetValue, tolerance, learningRate) {
+        // Check if this neuron would actually make any weight adjustments
         const outputLayer = neuronsByLayer[neuronsByLayer.length - 1];
-        const outputNeuron = outputLayer[0];
-        const currentOutput = outputNeuron.value;
+        const currentOutput = outputLayer[0].value;
         const error = currentOutput - targetValue;
 
         if (Math.abs(error) <= tolerance) {
           return false; // Already at target
         }
 
-        // Calculate gradients to see if this neuron has any influence
         const neuronGradients = computeNeuronGradients();
-        
+
         for (const connection of neuron.incoming) {
           const gradient = connection.from.value * neuronGradients[neuron.layerIndex][neuron.index];
-          if (Number.isFinite(gradient) && Math.abs(gradient) > 0.001) {
-            // This neuron can contribute to correction
-            return true;
+          if (!Number.isFinite(gradient) || gradient === 0) {
+            continue;
+          }
+          const weightDelta = learningRate * error * gradient;
+          // Check if this would result in an actual weight change after rounding
+          const currentWeight = connection.weight;
+          const newWeight = Math.round((currentWeight - weightDelta) * 100) / 100;
+          if (newWeight !== currentWeight) {
+            return true; // This neuron will make at least one adjustment
           }
         }
         return false;
@@ -1561,6 +1565,7 @@
             autoCorrectButtonEl.classList.remove('layer-action--animating');
             autoCorrectButtonEl.textContent = 'Automatikus javítás';
           }
+          recomputeNetwork(); // This will update button state
           return;
         }
 
@@ -1590,8 +1595,8 @@
             break;
           }
 
-          // Skip neurons that can't help with correction
-          if (!canNeuronHelpCorrect(neuron, targetValue, tolerance)) {
+          // Skip neurons that won't make any actual adjustments
+          if (!willNeuronMakeAdjustments(neuron, targetValue, tolerance, learningRate)) {
             continue;
           }
 
@@ -1646,10 +1651,12 @@
               if (weightDelta === 0) {
                 continue;
               }
-              connection.weight -= weightDelta;
-              connection.weight = Math.round(connection.weight * 100) / 100;
-              updateConnectionVisual(connection);
-              anyUpdate = true;
+              const newWeight = Math.round((connection.weight - weightDelta) * 100) / 100;
+              if (newWeight !== connection.weight) {
+                connection.weight = newWeight;
+                updateConnectionVisual(connection);
+                anyUpdate = true;
+              }
             }
 
             if (!anyUpdate) {
@@ -1682,15 +1689,6 @@
           }
         }
 
-        // Final recompute
-        recomputeNetwork();
-
-        // Check final result
-        const finalOutputLayer = neuronsByLayer[neuronsByLayer.length - 1];
-        const finalOutput = finalOutputLayer[0].value;
-        const finalError = Math.abs(finalOutput - targetValue);
-        overallSuccess = finalError <= tolerance;
-
         // Move cursor out
         await moveFakeCursorTo(-40, networkRect.height / 2, 400);
         hideFakeCursor();
@@ -1702,8 +1700,14 @@
 
         isAutoCorrectAnimating = false;
 
-        // Update button state based on result
-        updateAutoCorrectButtonState(overallSuccess);
+        // Final recompute - this will also update the button state via updateOutputPredictionLabel
+        recomputeNetwork();
+
+        // Check final result
+        const finalOutputLayer = neuronsByLayer[neuronsByLayer.length - 1];
+        const finalOutput = finalOutputLayer[0].value;
+        const finalError = Math.abs(finalOutput - targetValue);
+        overallSuccess = finalError <= tolerance;
 
         if (overallSuccess) {
           setStatus('Rejtett neuronok súlyai sikeresen beállítva!');
