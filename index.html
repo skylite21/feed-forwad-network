@@ -703,6 +703,77 @@
         min-width: 140px;
       }
     }
+
+    /* Fake cursor for auto-correct animation */
+    .fake-cursor {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    }
+
+    .fake-cursor--visible {
+      opacity: 1;
+    }
+
+    .fake-cursor svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    @keyframes cursorClick {
+      0% { transform: scale(1); }
+      50% { transform: scale(0.85); }
+      100% { transform: scale(1); }
+    }
+
+    .fake-cursor--clicking {
+      animation: cursorClick 0.2s ease;
+    }
+
+    /* Button animation state */
+    .layer-action--animating {
+      background: #64748b;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .layer-action--animating::after {
+      content: '';
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      margin-left: 8px;
+      border: 2px solid transparent;
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: buttonSpin 0.8s linear infinite;
+    }
+
+    @keyframes buttonSpin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Neuron highlight during auto-correct */
+    @keyframes neuronAutoCorrectHighlight {
+      0% {
+        box-shadow: inset 0 4px 10px rgba(148, 163, 184, 0.3), 0 0 0 rgba(34, 197, 94, 0);
+      }
+      50% {
+        box-shadow: inset 0 4px 10px rgba(148, 163, 184, 0.3), 0 0 20px rgba(34, 197, 94, 0.6);
+      }
+      100% {
+        box-shadow: inset 0 4px 10px rgba(148, 163, 184, 0.3), 0 0 0 rgba(34, 197, 94, 0);
+      }
+    }
+
+    .neuron--auto-correct-highlight {
+      animation: neuronAutoCorrectHighlight 0.6s ease;
+    }
   </style>
 </head>
 <body>
@@ -755,6 +826,11 @@
       </div>
       <div class="layers"></div>
       <div id="network-status" class="network-status"></div>
+      <div id="fake-cursor" class="fake-cursor">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87a.5.5 0 0 0 .35-.85L6.35 2.86a.5.5 0 0 0-.85.35Z" fill="#1f2937" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
     </div>
   </div>
 
@@ -790,8 +866,10 @@
       const shuffleButtonEl = document.getElementById('shuffle-inputs');
       const autoCorrectButtonEl = document.getElementById('auto-correct');
       const statusEl = document.getElementById('network-status');
+      const fakeCursorEl = document.getElementById('fake-cursor');
 
       const neuronsByLayer = [];
+      let isAutoCorrectAnimating = false;
       const connections = [];
       const expressionHighlightColor = '#fb923c';
       let activeConnection = null;
@@ -1344,6 +1422,9 @@
       }
 
       function handleAutoCorrectRequest() {
+        if (isAutoCorrectAnimating) {
+          return;
+        }
         if (!currentPetType) {
           setStatus('Nincs referencia a helyes címkére.');
           return;
@@ -1351,7 +1432,6 @@
         if (!neuronsByLayer.length) {
           return;
         }
-        const targetValue = currentPetType === 'cat' ? 1 : 0;
         const outputLayer = neuronsByLayer[neuronsByLayer.length - 1];
         if (!outputLayer.length) {
           setStatus('Hiányzik a kimeneti neuron.');
@@ -1365,11 +1445,213 @@
           setStatus('A háló már helyes eredményt ad.');
           return;
         }
-        const success = adjustNetworkToTargetOutput(targetValue, { limitToHiddenLayers: true });
-        if (success) {
-          setStatus('Rejtett neuronos súlyok automatikusan igazítva.');
+        handleAnimatedAutoCorrect();
+      }
+
+      function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+
+      function moveFakeCursorTo(x, y, duration = 400) {
+        return new Promise(resolve => {
+          const networkRect = networkEl.getBoundingClientRect();
+          fakeCursorEl.style.transition = `left ${duration}ms ease-out, top ${duration}ms ease-out`;
+          fakeCursorEl.style.left = `${x}px`;
+          fakeCursorEl.style.top = `${y}px`;
+          setTimeout(resolve, duration);
+        });
+      }
+
+      function showFakeCursor() {
+        fakeCursorEl.classList.add('fake-cursor--visible');
+      }
+
+      function hideFakeCursor() {
+        fakeCursorEl.classList.remove('fake-cursor--visible');
+      }
+
+      function clickFakeCursor() {
+        fakeCursorEl.classList.remove('fake-cursor--clicking');
+        void fakeCursorEl.offsetWidth;
+        fakeCursorEl.classList.add('fake-cursor--clicking');
+      }
+
+      function highlightNeuron(neuron) {
+        neuron.element.classList.remove('neuron--auto-correct-highlight');
+        void neuron.element.offsetWidth;
+        neuron.element.classList.add('neuron--auto-correct-highlight');
+      }
+
+      async function handleAnimatedAutoCorrect() {
+        if (isAutoCorrectAnimating) {
+          return;
+        }
+        isAutoCorrectAnimating = true;
+
+        // Disable button during animation
+        if (autoCorrectButtonEl) {
+          autoCorrectButtonEl.classList.add('layer-action--animating');
+          autoCorrectButtonEl.textContent = 'Javítás...';
+        }
+
+        const targetValue = currentPetType === 'cat' ? 1 : 0;
+        const tolerance = 0.01;
+        const maxIterationsPerNeuron = 50;
+        const learningRate = 0.05;
+
+        // Collect all hidden neurons
+        const hiddenNeurons = [];
+        for (let layerIndex = 1; layerIndex < neuronsByLayer.length - 1; layerIndex++) {
+          for (const neuron of neuronsByLayer[layerIndex]) {
+            hiddenNeurons.push(neuron);
+          }
+        }
+
+        if (hiddenNeurons.length === 0) {
+          setStatus('Nincsenek rejtett neuronok.');
+          isAutoCorrectAnimating = false;
+          if (autoCorrectButtonEl) {
+            autoCorrectButtonEl.classList.remove('layer-action--animating');
+            autoCorrectButtonEl.textContent = 'Automatikus javítás';
+          }
+          return;
+        }
+
+        // Position cursor at starting position (off screen initially)
+        const networkRect = networkEl.getBoundingClientRect();
+        fakeCursorEl.style.transition = 'none';
+        fakeCursorEl.style.left = '-40px';
+        fakeCursorEl.style.top = `${networkRect.height / 2}px`;
+        void fakeCursorEl.offsetWidth;
+
+        showFakeCursor();
+        await sleep(200);
+
+        let overallSuccess = false;
+
+        // Process each hidden neuron one by one
+        for (const neuron of hiddenNeurons) {
+          recomputeNetwork();
+          const outputLayer = neuronsByLayer[neuronsByLayer.length - 1];
+          const outputNeuron = outputLayer[0];
+          const currentError = Math.abs(outputNeuron.value - targetValue);
+
+          // Check if we've reached the target
+          if (currentError <= tolerance) {
+            overallSuccess = true;
+            break;
+          }
+
+          // Get neuron position relative to network
+          const neuronRect = neuron.element.getBoundingClientRect();
+          const cursorTargetX = neuronRect.left + neuronRect.width / 2 - networkRect.left - 12;
+          const cursorTargetY = neuronRect.top + neuronRect.height / 2 - networkRect.top - 12;
+
+          // Move cursor to neuron
+          await moveFakeCursorTo(cursorTargetX, cursorTargetY, 500);
+          await sleep(150);
+
+          // Click animation
+          clickFakeCursor();
+          await sleep(200);
+
+          // Show neuron panel
+          showNeuronPanel(neuron);
+          if (neuron.controlsEl) {
+            neuron.controlsEl.classList.add('neuron-controls--visible');
+            activeControlNeuron = neuron;
+          }
+          await sleep(300);
+
+          // Highlight the neuron
+          highlightNeuron(neuron);
+
+          // Adjust this neuron's incoming weights iteratively
+          let neuronIterations = 0;
+          while (neuronIterations < maxIterationsPerNeuron) {
+            recomputeNetwork();
+            const currentOutput = outputLayer[0].value;
+            const error = currentOutput - targetValue;
+
+            if (Math.abs(error) <= tolerance) {
+              overallSuccess = true;
+              break;
+            }
+
+            // Calculate gradients for this neuron's incoming connections
+            const neuronGradients = computeNeuronGradients();
+            let anyUpdate = false;
+
+            for (const connection of neuron.incoming) {
+              const gradient = connection.from.value * neuronGradients[neuron.layerIndex][neuron.index];
+              if (!Number.isFinite(gradient) || gradient === 0) {
+                continue;
+              }
+              const weightDelta = learningRate * error * gradient;
+              if (weightDelta === 0) {
+                continue;
+              }
+              connection.weight -= weightDelta;
+              connection.weight = Math.round(connection.weight * 100) / 100;
+              updateConnectionVisual(connection);
+              anyUpdate = true;
+            }
+
+            if (!anyUpdate) {
+              break;
+            }
+
+            neuronIterations++;
+
+            // Small delay to show the change visually (only every few iterations)
+            if (neuronIterations % 5 === 0) {
+              recomputeNetwork();
+              await sleep(50);
+            }
+          }
+
+          // Update panel content after adjustments
+          recomputeNetwork();
+          if (activeNeuron === neuron) {
+            updateNeuronPanelContent(neuron);
+          }
+
+          await sleep(400);
+
+          // Hide panel before moving to next neuron
+          hideNeuronPanel();
+          await sleep(200);
+
+          if (overallSuccess) {
+            break;
+          }
+        }
+
+        // Final recompute
+        recomputeNetwork();
+
+        // Check final result
+        const finalOutputLayer = neuronsByLayer[neuronsByLayer.length - 1];
+        const finalOutput = finalOutputLayer[0].value;
+        const finalError = Math.abs(finalOutput - targetValue);
+        overallSuccess = finalError <= tolerance;
+
+        // Move cursor out
+        await moveFakeCursorTo(-40, networkRect.height / 2, 400);
+        hideFakeCursor();
+
+        // Re-enable button
+        if (autoCorrectButtonEl) {
+          autoCorrectButtonEl.classList.remove('layer-action--animating');
+          autoCorrectButtonEl.textContent = 'Automatikus javítás';
+        }
+
+        isAutoCorrectAnimating = false;
+
+        if (overallSuccess) {
+          setStatus('Rejtett neuronok súlyai sikeresen beállítva!');
         } else {
-          setStatus('Nem sikerült csak a rejtett súlyokat módosítani.');
+          setStatus('A javítás részlegesen sikerült.');
         }
       }
 
